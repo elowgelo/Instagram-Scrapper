@@ -33,7 +33,9 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
     is_unlimited = (request.max_posts == 0)
     target_limit = 999999 if is_unlimited else request.max_posts
 
-    # Strategy 1: Direct Instagram REST API (Lightning Fast & 100% Reliable across Cloud IPs)
+    result_posts = []
+
+    # Strategy 1: Direct Instagram REST API (Lightning Fast & High Quality JSON)
     parsed_cookies = parse_cookie_header(raw_session)
     if parsed_cookies:
         try:
@@ -61,19 +63,28 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
                 api_posts = extract_posts_from_instagram_json(json_data, clean_target)
                 if api_posts:
                     print(f"[SCRAPER] Direct Instagram REST API SUCCESS: Extracted {len(api_posts)} REAL posts!", flush=True)
-                    return api_posts[:target_limit]
+                    result_posts = api_posts
             elif resp.status_code in (301, 302, 307, 308):
                 print(f"[SCRAPER] Direct REST API redirected ({resp.status_code}) -> Instagram session cookie missing or invalid.", flush=True)
         except Exception as e:
             print(f"[SCRAPER] Direct REST API note: {e}", flush=True)
 
-    # Strategy 2: Playwright Browser Scraper (Fast Fallback with Early Abort Protection)
-    try:
-        pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
-        if pw_posts:
-            print(f"[SCRAPER] Playwright Browser Scraper SUCCESS: Got {len(pw_posts)} REAL posts!", flush=True)
-            return pw_posts
-    except Exception as e:
-        print(f"[SCRAPER] Playwright strategy note: {e}", flush=True)
+    # Strategy 2: Playwright Browser Scraper Fallback
+    if not result_posts:
+        try:
+            pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
+            if pw_posts:
+                print(f"[SCRAPER] Playwright Browser Scraper SUCCESS: Got {len(pw_posts)} REAL posts!", flush=True)
+                result_posts = pw_posts
+        except Exception as e:
+            print(f"[SCRAPER] Playwright strategy note: {e}", flush=True)
 
-    return []
+    # Clean & Deduplicate Posts
+    final_posts = []
+    seen_ids = set()
+    for p in result_posts:
+        if p.id not in seen_ids:
+            seen_ids.add(p.id)
+            final_posts.append(p)
+
+    return final_posts[:target_limit]

@@ -39,6 +39,21 @@ def parse_engagement_from_text(text: str):
 
     return likes, comments
 
+def clean_caption_text(alt_text: str, username: str, clean_target: str, is_hashtag: bool) -> str:
+    if not alt_text:
+        return f"Postingan #{clean_target}" if is_hashtag else f"Postingan @{clean_target}"
+        
+    text = alt_text
+    # Strip Instagram boilerplate prefixes like "Photo by @username on July 28, 2026. May be an image of..."
+    text = re.sub(r'^(?:Photo|Video|Reel)\s+by\s+@?[a-zA-Z0-9._]+\s+on\s+[^.]+\.\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'^(?:Photo|Video|Reel)\s+by\s+@?[a-zA-Z0-9._]+\.\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'^May be an image of\s*', '', text, flags=re.IGNORECASE)
+    
+    clean_str = text.strip()
+    if not clean_str:
+        return f"Postingan @{username}" if username else f"Postingan #{clean_target}"
+    return clean_str
+
 def extract_posts_from_instagram_json(json_data, clean_target: str) -> List[InstagramPost]:
     extracted = []
     
@@ -221,7 +236,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     no_new_posts_streak = 0
                 previous_count = len(current_links)
 
-            # Check intercepted API posts
+            # Check intercepted API posts first for highest data quality (full JSON caption + real likes)
             if api_posts:
                 unique_api_posts = []
                 seen_ids = set()
@@ -234,7 +249,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     browser.close()
                     return unique_api_posts[:target_limit]
 
-            # DOM Extraction loop
+            # DOM Extraction loop with high-resolution srcset & clean caption parsing
             post_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
             print(f"[PLAYWRIGHT] DOM post links found: {len(post_links)}", flush=True)
             seen_shortcodes = set()
@@ -254,19 +269,29 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                         seen_shortcodes.add(shortcode)
 
                         img_elem = elem.query_selector("img")
-                        img_src = img_elem.get_attribute("src") if img_elem else ""
-                        alt_text = img_elem.get_attribute("alt") if img_elem else ""
+                        img_src = ""
+                        alt_text = ""
+                        
+                        if img_elem:
+                            img_src = img_elem.get_attribute("src") or ""
+                            srcset = img_elem.get_attribute("srcset") or ""
+                            if srcset:
+                                # Pick highest resolution image from srcset
+                                candidate_urls = [s.strip().split(" ")[0] for s in srcset.split(",") if s.strip()]
+                                if candidate_urls:
+                                    img_src = candidate_urls[-1]
+                            alt_text = img_elem.get_attribute("alt") or ""
 
                         author_username = extract_author_username(alt_text, clean_target)
                         likes, comments = parse_engagement_from_text(alt_text)
 
-                        caption = alt_text if alt_text else f"Postingan #{clean_target}" if is_hashtag else f"Postingan @{clean_target}"
+                        clean_caption = clean_caption_text(alt_text, author_username, clean_target, is_hashtag)
                         
                         scraped_posts.append(InstagramPost(
                             id=shortcode,
                             username=author_username,
                             profile_pic_url=None,
-                            caption=caption,
+                            caption=clean_caption,
                             post_url=f"https://www.instagram.com{href}" if href.startswith("/") else href,
                             media_url=img_src or "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&auto=format&fit=crop",
                             media_type="image",
