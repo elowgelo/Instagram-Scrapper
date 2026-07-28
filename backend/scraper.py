@@ -33,7 +33,18 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
     is_unlimited = (request.max_posts == 0)
     target_limit = 999999 if is_unlimited else request.max_posts
 
-    # Strategy 1: Direct Instagram REST API (Lightning Fast with X-CSRFToken Header)
+    # If Unlimited Mode (max_posts == 0) or High Limit (> 64), run Playwright Deep Infinite Scroll FIRST to fetch 1000+ posts!
+    if is_unlimited or request.max_posts > 64:
+        print(f"[SCRAPER] High Limit / Unlimited Mode requested ({request.max_posts}). Launching Playwright Deep Infinite Scroll...", flush=True)
+        try:
+            pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
+            if pw_posts and len(pw_posts) > 64:
+                print(f"[SCRAPER] Playwright Deep Scroll SUCCESS: Got {len(pw_posts)} REAL posts!", flush=True)
+                return pw_posts
+        except Exception as e:
+            print(f"[SCRAPER] Playwright strategy note: {e}", flush=True)
+
+    # Strategy: Direct Instagram REST API (Lightning Fast for Standard Limits <= 64)
     parsed_cookies = parse_cookie_header(raw_session)
     if parsed_cookies:
         try:
@@ -67,7 +78,7 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
         except Exception as e:
             print(f"[SCRAPER] Direct REST API note: {e}", flush=True)
 
-    # Strategy 2: Playwright Chromium Browser Scraper (Fallback & Deep Infinite Scroll)
+    # Strategy Fallback: Playwright Browser Scraper
     try:
         pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
         if pw_posts:
