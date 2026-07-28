@@ -173,7 +173,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             
             def handle_response(response):
                 try:
-                    if "graphql" in response.url or "top_serp" in response.url or "web_profile_info" in response.url or "sections" in response.url or "tags" in response.url:
+                    if "graphql" in response.url or "top_serp" in response.url or "web_profile_info" in response.url or "sections" in response.url or "tags" in response.url or "search" in response.url:
                         if response.status == 200:
                             json_data = response.json()
                             extracted = extract_posts_from_instagram_json(json_data, clean_target)
@@ -184,7 +184,6 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
 
             page.on("response", handle_response)
             
-            # Use direct search keyword URL for #hashtags
             if is_hashtag:
                 url = f"https://www.instagram.com/explore/search/keyword/?q=%23{clean_target}"
             elif target.startswith("http"):
@@ -195,14 +194,19 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})", flush=True)
             page.goto(url, wait_until="domcontentloaded", timeout=25000)
             
-            # Explicit selector wait for post grid elements
             try:
-                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", timeout=15000)
-                print("[PLAYWRIGHT] Post grid selector loaded successfully!", flush=True)
-            except Exception as se:
-                print(f"[PLAYWRIGHT] Selector wait note: {se}", flush=True)
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
 
-            # Deep Infinite Scroll Loop for Unlimited Mode
+            # Wait for attached DOM selector (bypasses overlay visibility blocks)
+            try:
+                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=12000)
+                print("[PLAYWRIGHT] Post grid attached selector loaded successfully!", flush=True)
+            except Exception as se:
+                print(f"[PLAYWRIGHT] Attached selector wait note: {se}", flush=True)
+
+            # Deep Infinite Scroll Loop
             max_scroll_loops = 100 if is_unlimited else min(10, max(2, target_limit // 10))
             previous_count = 0
             no_new_posts_streak = 0
@@ -236,7 +240,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     browser.close()
                     return unique_api_posts[:target_limit]
 
-            # DOM Extraction loop with exact real metrics parsing from alt / aria-label text
+            # DOM Extraction loop
             post_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
             print(f"[PLAYWRIGHT] DOM post links found: {len(post_links)}", flush=True)
             seen_shortcodes = set()
