@@ -1,96 +1,154 @@
-# 📸 Instagram Scraper & Keyword Filter Engine (SaaS Edition)
+<div align="center">
 
-A high-performance, automated Instagram Web Scraping and Real-time Keyword Filtering Engine built with **FastAPI**, **Playwright Chromium**, **SQLite**, and **React + Vite**.
+# 📸 Instagram Scraper & Real-Time Keyword Filter Engine
 
-![Emerald SaaS Theme](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop)
+<p align="center">
+  <b>A modern, high-performance web scraping and keyword analytics suite for Instagram posts, hashtags, and profiles.</b>
+</p>
 
----
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev/)
+[![Python](https://img.shields.io/badge/Python_3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge)](LICENSE)
 
-## 🌟 Key Features
+<br />
 
-- **🤖 Automated Live Web Scraping**: Scrapes posts, captions, images, and metadata directly using headless Playwright Chromium (supports `@username`, `#hashtag`, and Post URLs).
-- **👤 Real Instagram Author & Profile Picture Extraction**: Extracts the actual post owner's handle (`@username`) and Profile Picture (PP) directly from Instagram GraphQL payloads.
-- **❤️ Exact Likes & Comments Engagement Parsing**: Captures real engagement metrics directly from Instagram post metadata.
-- **🔍 Substring & Numeric Keyword Filter Engine**: Search and highlight exact or partial text substrings (e.g., `"ra"` matches `"ramadhan"`) as well as numeric strings (e.g., `"2026"`). Supports `OR`, `AND`, `EXACT`, and `REGEX` modes.
-- **📊 Analytics Sorting**: Sort filtered posts instantly by **Newest**, **Most Likes**, or **Most Comments**.
-- **📋 1-Click Copy Caption**: Copy post captions instantly with feedback toast.
-- **🚀 Deep Infinite Scroll (Unlimited Mode)**: Option to fetch all available posts by scrolling deep into Instagram search grids (`max_posts = 0`).
-- **⚡ Execution Pipeline Stepper**: Live visual timeline feedback during scraping with active status indicators (Yellow = Running, Green = Completed, Red = Error).
-- **🎨 Emerald SaaS Professional UI**: Clean, expensive-looking Dark/Light glassmorphism theme built with Vanilla CSS variables and Lucide icons.
-- **📥 CSV & JSON Export**: Export filtered dataset with 1-click.
+![App Preview](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop)
 
----
-
-## 🌐 Panduan Deploy Gratis 100% (Free Hosting Guide)
-
-Aplikasi ini menggunakan arsitektur terpisah (**Frontend React** dan **Backend FastAPI + Playwright**). Keduanya bisa di-deploy secara **100% GRATIS**!
-
-### Langkah 1: Push Project ke GitHub
-1. Buat repository baru di [GitHub](https://github.com/new) (misal: `instagram-scraper-app`).
-2. Push seluruh folder project ke GitHub:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/USERNAME/instagram-scraper-app.git
-   git push -u origin main
-   ```
+</div>
 
 ---
 
-### Langkah 2: Deploy Backend FastAPI + Playwright (GRATIS di Render / Koyeb)
+## 📖 Overview
 
-Karena backend menggunakan **Playwright Chromium**, kita dianjurkan menggunakan fitur **Docker Deployment** gratis di **Render.com** atau **Koyeb.com**.
-
-#### Option A: Render.com (Rekomendasi)
-1. Daftar / Login ke [Render.com](https://render.com/).
-2. Klik **New +** &rarr; pilih **Web Service**.
-3. Hubungkan repository GitHub `instagram-scraper-app` Anda.
-4. Pilih **Language**: `Docker` (Render otomatis mendeteksi file `backend/Dockerfile`).
-5. Pada **Root Directory**, isi: `backend`.
-6. Pilih **Free Plan** (`$0/month`).
-7. Klik **Create Web Service**.
-8. Setelah deployment selesai, Render akan memberikan URL Backend Publik (contoh: `https://ig-scraper-api.onrender.com`).
+**Instagram Scraper & Keyword Filter Engine** is a full-stack SaaS solution designed to automate Instagram content extraction and perform real-time caption analytics. Powered by **Playwright Chromium**, the engine navigates Instagram's web architecture to pull live posts, actual author `@usernames`, profile pictures (PP), captions, and engagement metrics—all presented in an **Emerald SaaS Glassmorphism Dashboard**.
 
 ---
 
-### Langkah 3: Deploy Frontend React (GRATIS di Vercel / Netlify)
+## ✨ Key Features
 
-#### Option A: Vercel (Rekomendasi)
-1. Daftar / Login ke [Vercel.com](https://vercel.com/).
-2. Klik **Add New...** &rarr; **Project**.
-3. Import repository GitHub `instagram-scraper-app`.
-4. Pada **Framework Preset**, pilih **Vite**.
-5. Pada **Root Directory**, isi: `frontend`.
-6. Buka bagian **Environment Variables**:
-   - **Key**: `VITE_API_BASE_URL`
-   - **Value**: URL backend Render Anda (contoh: `https://ig-scraper-api.onrender.com`)
-7. Klik **Deploy**.
-8. Dalam beberapa detik, Vercel akan memberikan URL web aplikasi siap pakai (contoh: `https://instagram-scraper-app.vercel.app`).
+| Feature | Description |
+| :--- | :--- |
+| 🤖 **Automated Live Scraping** | Extract posts from `@username` profiles, `#hashtags`, or specific post URLs via headless Playwright Chromium. |
+| 👤 **Real Author & Profile Picture Extraction** | Automatically parses GraphQL payloads to extract the actual owner handle (`@username`) and Profile Picture (PP). |
+| ❤️ **Exact Engagement Metrics** | Captures exact Likes and Comments metrics directly from Instagram metadata. |
+| 🔍 **Substring & Numeric Search Engine** | Search and highlight text substrings (e.g., `"ra"` matches `"ramadhan"`) and numbers (e.g., `"2026"`) across `OR`, `AND`, `EXACT`, and `REGEX` modes. |
+| 📊 **Analytics Sorting** | Instantly sort extracted feed items by **Newest**, **Most Likes**, or **Most Comments**. |
+| ⚡ **Live Execution Pipeline Stepper** | Visual deployment-style progress pipeline (🟡 Yellow = Running, 🟢 Green = Completed, 🔴 Red = Error). |
+| 🚀 **Deep Infinite Scroll (Unlimited Mode)** | Scroll deep into Instagram search grids (`max_posts = 0`) to fetch hundreds of posts. |
+| 📋 **1-Click Copy Caption** | Copy post captions instantly with responsive toast notifications. |
+| 📥 **Data Export** | Export filtered post datasets in 1-click as **CSV** or **JSON**. |
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## 🏛️ System Architecture
 
-### 1. Backend Setup
+```mermaid
+flowchart TD
+    User([User Browser]) <--> ReactApp[React 18 + Vite Frontend]
+    ReactApp <-->|REST API / JSON| FastAPI[FastAPI Backend Server]
+    FastAPI <--> SQLite[(SQLite Database)]
+    FastAPI <-->|Automated Navigation| Playwright[Playwright Chromium Engine]
+    Playwright <-->|Live Scraping| Instagram[Instagram Web / GraphQL]
+```
 
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18, Vite, Lucide-React, Modern CSS Glassmorphism Design Tokens.
+- **Backend**: Python 3.10+, FastAPI, Playwright (Chromium), SQLite3, Pydantic, Uvicorn.
+- **Deployment**: Docker, Vercel (Frontend), Render / Koyeb (Backend Web Service).
+
+---
+
+## 🚀 Quick Start (Local Setup)
+
+### Prerequisites
+- Python 3.10 or higher
+- Node.js 18 or higher
+- Git
+
+### 1. Clone Repository
+```bash
+git clone https://github.com/elowgelo/Instagram-Scrapper.git
+cd Instagram-Scrapper
+```
+
+### 2. Backend Setup
 ```bash
 cd backend
+
+# Create virtual environment (optional)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install requirements
 pip install -r requirements.txt
+
+# Install Playwright Chromium binaries
 playwright install chromium
+
+# Run FastAPI Server
 python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
+> The API server will be available at `http://127.0.0.1:8000`. Swagger API docs at `http://127.0.0.1:8000/docs`.
 
-### 2. Frontend Setup
-
+### 3. Frontend Setup
 ```bash
-cd frontend
+cd ../frontend
+
+# Install dependencies
 npm install
+
+# Run Vite Dev Server
 npm run dev
 ```
+> The web application will be available at `http://localhost:5173`.
 
 ---
 
-## 📝 License
-Distributed under the MIT License. Built with ❤️ for automated web scraping and content analytics.
+## 📡 REST API Reference
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/scrape` | `POST` | Trigger Playwright scraper for `@user`, `#tag`, or post URL |
+| `/api/filter` | `POST` | Execute substring & numeric keyword search on stored posts |
+| `/api/posts` | `GET` | Fetch all scraped posts from SQLite database |
+| `/api/posts` | `DELETE` | Clear all scraped posts from database |
+| `/api/export` | `POST` | Export filtered dataset as CSV or JSON file |
+
+---
+
+## 🌐 100% Free Deployment Guide
+
+### 1. Deploy Backend (Render.com / Docker)
+1. Login to **[Render.com](https://render.com/)**.
+2. Click **New +** &rarr; **Web Service** &rarr; Connect `elowgelo/Instagram-Scrapper`.
+3. Set **Language**: `Docker` *(Render reads `backend/Dockerfile` automatically)*.
+4. Set **Root Directory**: `backend`.
+5. Select **Free Plan** and Deploy.
+6. Copy your Render service URL (e.g., `https://ig-scraper-api.onrender.com`).
+
+### 2. Deploy Frontend (Vercel)
+1. Login to **[Vercel.com](https://vercel.com/)**.
+2. Click **Add New...** &rarr; **Project** &rarr; Import `elowgelo/Instagram-Scrapper`.
+3. Set **Framework Preset**: `Vite`.
+4. Set **Root Directory**: `frontend`.
+5. Add Environment Variable:
+   - `VITE_API_BASE_URL` = `https://ig-scraper-api.onrender.com`
+6. Click **Deploy**.
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See `LICENSE` for more information.
+
+---
+
+<p align="center">
+  Crafted with ❤️ by <a href="https://github.com/elowgelo">@elowgelo</a>
+</p>
