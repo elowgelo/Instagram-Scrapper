@@ -50,6 +50,7 @@ export default function PostCard({ post, activeKeywords = [] }) {
               src={post.profile_pic_url}
               alt={post.username}
               className="user-avatar-img"
+              referrerPolicy="no-referrer"
               onError={(e) => {
                 e.target.style.display = 'none';
                 if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
@@ -87,6 +88,7 @@ export default function PostCard({ post, activeKeywords = [] }) {
         src={post.media_url || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&auto=format&fit=crop'}
         alt="Post media"
         className="post-media"
+        referrerPolicy="no-referrer"
         onError={(e) => {
           e.target.onerror = null;
           e.target.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&auto=format&fit=crop';
