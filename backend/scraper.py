@@ -33,7 +33,7 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
     is_unlimited = (request.max_posts == 0)
     target_limit = 999999 if is_unlimited else request.max_posts
 
-    # Strategy 1: Direct Instagram REST API (Lightning Fast & 100% Reliable across Cloud IPs)
+    # Strategy 1: Direct Instagram REST API (Lightning Fast & No Infinite Redirects)
     parsed_cookies = parse_cookie_header(raw_session)
     if parsed_cookies:
         try:
@@ -52,7 +52,7 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
                 url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_target}"
 
             print(f"[SCRAPER] Trying Direct Instagram REST API: {url}", flush=True)
-            resp = requests.get(url, headers=headers, cookies=parsed_cookies, timeout=8)
+            resp = requests.get(url, headers=headers, cookies=parsed_cookies, allow_redirects=False, timeout=8)
             
             if resp.status_code == 200:
                 json_data = resp.json()
@@ -60,6 +60,8 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
                 if api_posts:
                     print(f"[SCRAPER] Direct Instagram REST API SUCCESS: Extracted {len(api_posts)} REAL posts!", flush=True)
                     return api_posts[:target_limit]
+            elif resp.status_code in (301, 302, 307, 308):
+                print(f"[SCRAPER] Direct REST API redirected ({resp.status_code}) -> Instagram session cookie missing or invalid.", flush=True)
         except Exception as e:
             print(f"[SCRAPER] Direct REST API note: {e}", flush=True)
 
