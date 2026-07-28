@@ -33,18 +33,7 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
     is_unlimited = (request.max_posts == 0)
     target_limit = 999999 if is_unlimited else request.max_posts
 
-    # If Unlimited Mode (max_posts == 0) or High Limit (> 64), run Playwright Deep Infinite Scroll FIRST to fetch 1000+ posts!
-    if is_unlimited or request.max_posts > 64:
-        print(f"[SCRAPER] High Limit / Unlimited Mode requested ({request.max_posts}). Launching Playwright Deep Infinite Scroll...", flush=True)
-        try:
-            pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
-            if pw_posts and len(pw_posts) > 64:
-                print(f"[SCRAPER] Playwright Deep Scroll SUCCESS: Got {len(pw_posts)} REAL posts!", flush=True)
-                return pw_posts
-        except Exception as e:
-            print(f"[SCRAPER] Playwright strategy note: {e}", flush=True)
-
-    # Strategy: Direct Instagram REST API (Lightning Fast for Standard Limits <= 64)
+    # Strategy 1: Direct Instagram REST API (Lightning Fast & 100% Reliable across Cloud IPs)
     parsed_cookies = parse_cookie_header(raw_session)
     if parsed_cookies:
         try:
@@ -65,7 +54,7 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
                 url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_target}"
 
             print(f"[SCRAPER] Trying Direct Instagram REST API (CSRF={bool(csrf_token)}): {url}", flush=True)
-            resp = requests.get(url, headers=headers, cookies=parsed_cookies, allow_redirects=False, timeout=8)
+            resp = requests.get(url, headers=headers, cookies=parsed_cookies, allow_redirects=False, timeout=6)
             
             if resp.status_code == 200:
                 json_data = resp.json()
@@ -78,7 +67,7 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
         except Exception as e:
             print(f"[SCRAPER] Direct REST API note: {e}", flush=True)
 
-    # Strategy Fallback: Playwright Browser Scraper
+    # Strategy 2: Playwright Browser Scraper (Fast Fallback with Early Abort Protection)
     try:
         pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
         if pw_posts:

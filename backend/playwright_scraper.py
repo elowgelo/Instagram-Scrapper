@@ -25,14 +25,12 @@ def parse_engagement_from_text(text: str):
     if not text:
         return likes, comments
     
-    # Parse likes (e.g., "33 likes", "1,420 likes", "33 suka")
     likes_match = re.search(r'([0-9,.KMBkmb]+)\s+(?:likes|suka)', text, re.IGNORECASE)
     if likes_match:
         val_str = likes_match.group(1).replace(',', '').replace('.', '')
         if val_str.isdigit():
             likes = int(val_str)
             
-    # Parse comments (e.g., "5 comments", "12 komentar")
     comments_match = re.search(r'([0-9,.KMBkmb]+)\s+(?:comments|komentar)', text, re.IGNORECASE)
     if comments_match:
         val_str = comments_match.group(1).replace(',', '').replace('.', '')
@@ -63,7 +61,6 @@ def extract_posts_from_instagram_json(json_data, clean_target: str) -> List[Inst
 
                 code = obj.get("code") or obj.get("shortcode") or str(obj.get("pk", ""))
                 
-                # Extract EXACT real like & comment count from Instagram API object
                 likes_raw = (
                     obj.get("like_count") or
                     obj.get("edge_liked_by", {}).get("count") or
@@ -185,43 +182,48 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             page.on("response", handle_response)
             
             if is_hashtag:
-                url = f"https://www.instagram.com/explore/search/keyword/?q=%23{clean_target}"
+                url = f"https://www.instagram.com/explore/tags/{clean_target}/"
             elif target.startswith("http"):
                 url = target
             else:
                 url = f"https://www.instagram.com/{clean_target}/"
 
             print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})", flush=True)
-            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            page.goto(url, wait_until="domcontentloaded", timeout=15000)
             
             try:
                 page.keyboard.press("Escape")
             except Exception:
                 pass
 
-            # Wait for attached DOM selector
+            # Fast initial check (timeout 5s)
             try:
-                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=10000)
-                print("[PLAYWRIGHT] Post grid attached selector loaded successfully!", flush=True)
+                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=5000)
             except Exception as se:
-                print(f"[PLAYWRIGHT] Attached selector wait note: {se}", flush=True)
+                print(f"[PLAYWRIGHT] Initial selector check note: {se}", flush=True)
 
-            # Optimized Fast Infinite Scroll Loop (Max 25 loops * 1s = 25s execution to stay well below Render's 100s HTTP timeout)
-            max_scroll_loops = 25 if is_unlimited else min(20, max(2, target_limit // 5))
+            # Early Abort Protection: If 0 DOM links AND 0 API posts captured after load, exit early to avoid HTTP timeout!
+            initial_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
+            if len(initial_links) == 0 and len(api_posts) == 0:
+                print("[PLAYWRIGHT] 0 links found on initial load. Aborting Playwright early to prevent HTTP timeout.", flush=True)
+                browser.close()
+                return []
+
+            # Fast Infinite Scroll Loop (Max 15 loops)
+            max_scroll_loops = 15 if is_unlimited else min(10, max(2, target_limit // 5))
             previous_count = 0
             no_new_posts_streak = 0
             
             for scroll_idx in range(max_scroll_loops):
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(800)
                 
                 current_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
                 if not is_unlimited and len(current_links) >= target_limit:
                     break
-                if scroll_idx > 4 and len(current_links) == previous_count:
+                if scroll_idx > 2 and len(current_links) == previous_count:
                     no_new_posts_streak += 1
-                    if no_new_posts_streak >= 3:
-                        print(f"[PLAYWRIGHT] Reached end of Instagram feed at {len(current_links)} posts!", flush=True)
+                    if no_new_posts_streak >= 2:
                         break
                 else:
                     no_new_posts_streak = 0
