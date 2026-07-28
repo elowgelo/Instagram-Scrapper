@@ -184,14 +184,21 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
 
             page.on("response", handle_response)
             
-            url = f"https://www.instagram.com/explore/search/keyword/?q=%23{clean_target}" if is_hashtag else f"https://www.instagram.com/{clean_target}/"
+            # Direct Hashtag Tag Page for #hashtag, or profile page for @username
+            if is_hashtag:
+                url = f"https://www.instagram.com/explore/tags/{clean_target}/"
+            elif target.startswith("http"):
+                url = target
+            else:
+                url = f"https://www.instagram.com/{clean_target}/"
+
             print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})")
             page.goto(url, wait_until="domcontentloaded", timeout=25000)
             
             try:
                 page.wait_for_selector("a", timeout=10000)
-            except Exception:
-                pass
+            except Exception as se:
+                print(f"[PLAYWRIGHT] Selector wait note: {se}")
 
             # Deep Infinite Scroll Loop for Unlimited Mode
             max_scroll_loops = 100 if is_unlimited else min(10, max(2, target_limit // 10))
@@ -222,7 +229,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     if p.id not in seen_ids:
                         seen_ids.add(p.id)
                         unique_api_posts.append(p)
-                if len(unique_api_posts) >= (target_limit if not is_unlimited else 50):
+                if len(unique_api_posts) >= (target_limit if not is_unlimited else 10):
                     print(f"[PLAYWRIGHT] Network Intercept SUCCESS: Fetched {len(unique_api_posts)} REAL posts!")
                     browser.close()
                     return unique_api_posts[:target_limit]
