@@ -1,9 +1,12 @@
 import os
 import io
 import time
+import asyncio
 import pandas as pd
 from typing import List, Optional
 from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,6 +19,8 @@ DEMO_IMAGES = [
     "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop"
 ]
+
+executor = ThreadPoolExecutor(max_workers=4)
 
 def ensure_initial_data():
     init_sqlite_db()
@@ -51,11 +56,13 @@ def clear_posts():
     return {"status": "ok", "message": "Semua data postingan berhasil dihapus"}
 
 @app.post("/api/scrape", response_model=List[InstagramPost])
-def scrape_posts(req: ScrapeRequest):
+async def scrape_posts(req: ScrapeRequest):
     if not req.target:
         raise HTTPException(status_code=400, detail="Target username, hashtag, atau URL wajib diisi")
         
-    posts = scrape_instagram_posts(req)
+    loop = asyncio.get_running_loop()
+    posts = await loop.run_in_executor(executor, scrape_instagram_posts, req)
+    
     if not posts:
         raise HTTPException(status_code=400, detail="Gagal melakukan scraping postingan. Akses Instagram diblokir atau target tidak ditemukan/tidak memiliki postingan publik.")
         

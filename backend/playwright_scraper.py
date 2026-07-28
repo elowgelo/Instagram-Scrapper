@@ -165,7 +165,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
 
             if formatted_cookies:
                 context.add_cookies(formatted_cookies)
-                print(f"[PLAYWRIGHT] Added {len(formatted_cookies)} cookies to browser context")
+                print(f"[PLAYWRIGHT] Added {len(formatted_cookies)} cookies to browser context", flush=True)
 
             page = context.new_page()
             
@@ -192,13 +192,13 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             else:
                 url = f"https://www.instagram.com/{clean_target}/"
 
-            print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})")
+            print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})", flush=True)
             page.goto(url, wait_until="domcontentloaded", timeout=25000)
             
             try:
                 page.wait_for_selector("a", timeout=10000)
             except Exception as se:
-                print(f"[PLAYWRIGHT] Selector wait note: {se}")
+                print(f"[PLAYWRIGHT] Selector wait note: {se}", flush=True)
 
             # Deep Infinite Scroll Loop for Unlimited Mode
             max_scroll_loops = 100 if is_unlimited else min(10, max(2, target_limit // 10))
@@ -215,7 +215,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                 if scroll_idx > 6 and len(current_links) == previous_count:
                     no_new_posts_streak += 1
                     if no_new_posts_streak >= 4:
-                        print(f"[PLAYWRIGHT] Reached end of Instagram feed at {len(current_links)} posts!")
+                        print(f"[PLAYWRIGHT] Reached end of Instagram feed at {len(current_links)} posts!", flush=True)
                         break
                 else:
                     no_new_posts_streak = 0
@@ -230,7 +230,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                         seen_ids.add(p.id)
                         unique_api_posts.append(p)
                 if len(unique_api_posts) >= (target_limit if not is_unlimited else 10):
-                    print(f"[PLAYWRIGHT] Network Intercept SUCCESS: Fetched {len(unique_api_posts)} REAL posts!")
+                    print(f"[PLAYWRIGHT] Network Intercept SUCCESS: Fetched {len(unique_api_posts)} REAL posts!", flush=True)
                     browser.close()
                     return unique_api_posts[:target_limit]
 
@@ -280,10 +280,10 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
 
             browser.close()
             if scraped_posts:
-                print(f"[PLAYWRIGHT] DOM Extraction SUCCESS: Fetched {len(scraped_posts)} REAL posts!")
+                print(f"[PLAYWRIGHT] DOM Extraction SUCCESS: Fetched {len(scraped_posts)} REAL posts!", flush=True)
                 return scraped_posts
 
     except Exception as e:
-        print(f"[PLAYWRIGHT] Error during live scraping: {e}")
+        print(f"[PLAYWRIGHT] Error during live scraping: {e}", flush=True)
 
     return scraped_posts
