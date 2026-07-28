@@ -35,41 +35,54 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
 
     result_posts = []
 
-    # Strategy 1: Direct Instagram REST API (Lightning Fast & High Quality JSON)
-    parsed_cookies = parse_cookie_header(raw_session)
-    if parsed_cookies:
+    # UNLIMITED / HIGH LIMIT MODE (> 64 posts):
+    # Launch Playwright Chromium Deep Infinite Scroll FIRST to scroll 100+ times and collect 1000+ posts!
+    if is_unlimited or request.max_posts > 64:
+        print(f"[SCRAPER] Unlimited / High Limit Mode ({request.max_posts}) requested. Launching Playwright Unlimited Deep Scroll...", flush=True)
         try:
-            csrf_token = parsed_cookies.get("csrftoken", "")
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept": "*/*",
-                "Accept-Language": "en-US,en;q=0.9",
-                "X-IG-App-ID": "936619743392459",
-                "X-CSRFToken": csrf_token,
-                "X-Requested-With": "XMLHttpRequest",
-                "Referer": f"https://www.instagram.com/{clean_target}/"
-            }
-
-            if is_hashtag:
-                url = f"https://www.instagram.com/api/v1/tags/web_info/?tag_name={clean_target}"
-            else:
-                url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_target}"
-
-            print(f"[SCRAPER] Trying Direct Instagram REST API (CSRF={bool(csrf_token)}): {url}", flush=True)
-            resp = requests.get(url, headers=headers, cookies=parsed_cookies, allow_redirects=False, timeout=6)
-            
-            if resp.status_code == 200:
-                json_data = resp.json()
-                api_posts = extract_posts_from_instagram_json(json_data, clean_target)
-                if api_posts:
-                    print(f"[SCRAPER] Direct Instagram REST API SUCCESS: Extracted {len(api_posts)} REAL posts!", flush=True)
-                    result_posts = api_posts
-            elif resp.status_code in (301, 302, 307, 308):
-                print(f"[SCRAPER] Direct REST API redirected ({resp.status_code}) -> Instagram session cookie missing or invalid.", flush=True)
+            pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
+            if pw_posts and len(pw_posts) > 0:
+                print(f"[SCRAPER] Playwright Unlimited Deep Scroll SUCCESS: Got {len(pw_posts)} REAL posts!", flush=True)
+                result_posts = pw_posts
         except Exception as e:
-            print(f"[SCRAPER] Direct REST API note: {e}", flush=True)
+            print(f"[SCRAPER] Playwright unlimited strategy note: {e}", flush=True)
 
-    # Strategy 2: Playwright Browser Scraper Fallback
+    # STANDARD FAST MODE (<= 64 posts): Direct Instagram REST API
+    if not result_posts:
+        parsed_cookies = parse_cookie_header(raw_session)
+        if parsed_cookies:
+            try:
+                csrf_token = parsed_cookies.get("csrftoken", "")
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "*/*",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "X-IG-App-ID": "936619743392459",
+                    "X-CSRFToken": csrf_token,
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": f"https://www.instagram.com/{clean_target}/"
+                }
+
+                if is_hashtag:
+                    url = f"https://www.instagram.com/api/v1/tags/web_info/?tag_name={clean_target}"
+                else:
+                    url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_target}"
+
+                print(f"[SCRAPER] Trying Direct Instagram REST API (CSRF={bool(csrf_token)}): {url}", flush=True)
+                resp = requests.get(url, headers=headers, cookies=parsed_cookies, allow_redirects=False, timeout=6)
+                
+                if resp.status_code == 200:
+                    json_data = resp.json()
+                    api_posts = extract_posts_from_instagram_json(json_data, clean_target)
+                    if api_posts:
+                        print(f"[SCRAPER] Direct Instagram REST API SUCCESS: Extracted {len(api_posts)} REAL posts!", flush=True)
+                        result_posts = api_posts
+                elif resp.status_code in (301, 302, 307, 308):
+                    print(f"[SCRAPER] Direct REST API redirected ({resp.status_code}) -> Instagram session cookie missing or invalid.", flush=True)
+            except Exception as e:
+                print(f"[SCRAPER] Direct REST API note: {e}", flush=True)
+
+    # Strategy Fallback: Playwright Browser Scraper
     if not result_posts:
         try:
             pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)

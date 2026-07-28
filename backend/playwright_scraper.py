@@ -208,7 +208,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                 url = f"https://www.instagram.com/{clean_target}/"
 
             print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})", flush=True)
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            page.goto(url, wait_until="domcontentloaded", timeout=25000)
             
             try:
                 page.keyboard.press("Escape")
@@ -216,29 +216,32 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                 pass
 
             try:
-                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=6000)
+                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=10000)
             except Exception as se:
                 print(f"[PLAYWRIGHT] Initial selector check note: {se}", flush=True)
 
-            max_scroll_loops = 15 if is_unlimited else min(10, max(2, target_limit // 5))
+            # Deep Infinite Scroll Loop for Unlimited Mode (up to 120 scroll loops!)
+            max_scroll_loops = 120 if is_unlimited else min(50, max(2, target_limit // 5))
             previous_count = 0
             no_new_posts_streak = 0
             
             for scroll_idx in range(max_scroll_loops):
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(800)
+                page.wait_for_timeout(1000)
                 
                 current_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
                 if not is_unlimited and len(current_links) >= target_limit:
                     break
-                if scroll_idx > 2 and len(current_links) == previous_count:
+                if scroll_idx > 8 and len(current_links) == previous_count:
                     no_new_posts_streak += 1
-                    if no_new_posts_streak >= 2:
+                    if no_new_posts_streak >= 5:
+                        print(f"[PLAYWRIGHT] Reached end of feed at {len(current_links)} posts!", flush=True)
                         break
                 else:
                     no_new_posts_streak = 0
                 previous_count = len(current_links)
 
+            # Prioritize intercepted API posts for full high quality JSON metadata
             if api_posts:
                 unique_api_posts = []
                 seen_ids = set()
@@ -251,6 +254,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     browser.close()
                     return unique_api_posts[:target_limit]
 
+            # DOM Extraction loop with high-resolution srcset
             post_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
             print(f"[PLAYWRIGHT] DOM post links found: {len(post_links)}", flush=True)
             seen_shortcodes = set()
