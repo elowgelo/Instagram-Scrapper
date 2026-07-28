@@ -7,7 +7,7 @@ from typing import List, Optional
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query, Response, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import InstagramPost, ScrapeRequest, ImportPostsRequest, FilterRequest, ExportRequest
@@ -51,8 +51,9 @@ def options_handler(full_path: str):
     return Response(status_code=200)
 
 @app.delete("/api/posts")
-def clear_posts():
-    clear_all_posts_in_db()
+def clear_posts(session_token: Optional[str] = Query(None), x_session_token: Optional[str] = Header(None)):
+    token = session_token or x_session_token or "default_session"
+    clear_all_posts_in_db(token)
     return {"status": "ok", "message": "Semua data postingan berhasil dihapus"}
 
 @app.post("/api/scrape", response_model=List[InstagramPost])
@@ -66,7 +67,8 @@ async def scrape_posts(req: ScrapeRequest):
     if not posts:
         raise HTTPException(status_code=400, detail="Gagal melakukan scraping postingan. Akses Instagram diblokir atau target tidak ditemukan/tidak memiliki postingan publik.")
         
-    save_posts_to_db(posts)
+    token = req.session_token or "default_session"
+    save_posts_to_db(posts, token)
     return posts
 
 @app.post("/api/import", response_model=List[InstagramPost])
@@ -76,6 +78,7 @@ def import_custom_posts(req: ImportPostsRequest):
         
     clean_username = req.username.replace("@", "").strip()
     imported_posts = []
+    token = req.session_token or "default_session"
     
     for i, caption_text in enumerate(req.captions):
         if not caption_text.strip():
@@ -100,13 +103,14 @@ def import_custom_posts(req: ImportPostsRequest):
         imported_posts.append(post)
         
     if imported_posts:
-        save_posts_to_db(imported_posts)
+        save_posts_to_db(imported_posts, token)
         
     return imported_posts
 
 @app.post("/api/filter", response_model=List[InstagramPost])
 def filter_scraped_posts(req: FilterRequest):
-    posts_to_filter = req.posts if req.posts else get_all_posts_from_db()
+    token = req.session_token or "default_session"
+    posts_to_filter = req.posts if req.posts else get_all_posts_from_db(token)
     filtered = filter_posts(posts_to_filter, req)
     return filtered
 
@@ -114,9 +118,12 @@ def filter_scraped_posts(req: FilterRequest):
 def get_posts(
     keywords: Optional[str] = Query(None, description="Comma separated keywords"),
     match_mode: str = "OR",
-    username: Optional[str] = None
+    username: Optional[str] = None,
+    session_token: Optional[str] = Query(None),
+    x_session_token: Optional[str] = Header(None)
 ):
-    all_posts = get_all_posts_from_db()
+    token = session_token or x_session_token or "default_session"
+    all_posts = get_all_posts_from_db(token)
     
     if keywords or username:
         kw_list = [k.strip() for k in keywords.split(",")] if keywords else []
@@ -124,7 +131,8 @@ def get_posts(
             keywords=kw_list,
             match_mode=match_mode,
             target_username=username,
-            posts=all_posts
+            posts=all_posts,
+            session_token=token
         )
         return filter_posts(all_posts, req)
         

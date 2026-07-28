@@ -19,16 +19,19 @@ class ScrapeRequest(BaseModel):
     target: str
     max_posts: int = 20
     session_id: Optional[str] = None
+    session_token: Optional[str] = "default_session"
 
 class ImportPostsRequest(BaseModel):
     username: str
     captions: List[str]
+    session_token: Optional[str] = "default_session"
 
 class FilterRequest(BaseModel):
     keywords: List[str] = []
     match_mode: str = "OR"
     target_username: Optional[str] = None
     posts: Optional[List[InstagramPost]] = None
+    session_token: Optional[str] = "default_session"
 
 class ExportRequest(BaseModel):
     posts: List[InstagramPost]

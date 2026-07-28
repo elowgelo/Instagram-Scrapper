@@ -22,6 +22,16 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Automatic Client Session Token (UUID) for Multi-User Isolation
+  const [sessionToken] = useState(() => {
+    let token = localStorage.getItem('app_user_session_token');
+    if (!token) {
+      token = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+      localStorage.setItem('app_user_session_token', token);
+    }
+    return token;
+  });
+
   // Theme State (Dark / Light)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('app_theme') || 'dark';
@@ -40,7 +50,7 @@ export default function App() {
     setIsLoading(true);
     setErrorMsg('');
     try {
-      const res = await fetch(`${API_BASE}/api/posts`);
+      const res = await fetch(`${API_BASE}/api/posts?session_token=${sessionToken}`);
       if (!res.ok) throw new Error('Gagal mengambil postingan');
       const data = await res.json();
       setAllPosts(data);
@@ -55,7 +65,7 @@ export default function App() {
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [sessionToken]);
 
   const handleFilter = async () => {
     if (allPosts.length === 0) {
@@ -70,7 +80,8 @@ export default function App() {
         body: JSON.stringify({
           keywords,
           match_mode: matchMode,
-          posts: allPosts
+          posts: allPosts,
+          session_token: sessionToken
         })
       });
       if (!res.ok) throw new Error('Gagal memfilter postingan');
@@ -104,7 +115,8 @@ export default function App() {
         body: JSON.stringify({
           target,
           max_posts: maxPosts,
-          session_id: sessionId || null
+          session_id: sessionId || null,
+          session_token: sessionToken
         })
       });
 
@@ -134,11 +146,11 @@ export default function App() {
 
   const handleClearData = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/posts`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/posts?session_token=${sessionToken}`, { method: 'DELETE' });
       if (res.ok) {
         setAllPosts([]);
         setFilteredPosts([]);
-        setSuccessMsg('Semua data postingan berhasil dibersihkan!');
+        setSuccessMsg('Semua data postingan Anda berhasil dibersihkan!');
         setTimeout(() => setSuccessMsg(''), 3000);
       }
     } catch (err) {
