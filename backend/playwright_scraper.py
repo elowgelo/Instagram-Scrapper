@@ -192,35 +192,35 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                 url = f"https://www.instagram.com/{clean_target}/"
 
             print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})", flush=True)
-            page.goto(url, wait_until="domcontentloaded", timeout=25000)
+            page.goto(url, wait_until="domcontentloaded", timeout=20000)
             
             try:
                 page.keyboard.press("Escape")
             except Exception:
                 pass
 
-            # Wait for attached DOM selector (bypasses overlay visibility blocks)
+            # Wait for attached DOM selector
             try:
-                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=12000)
+                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=10000)
                 print("[PLAYWRIGHT] Post grid attached selector loaded successfully!", flush=True)
             except Exception as se:
                 print(f"[PLAYWRIGHT] Attached selector wait note: {se}", flush=True)
 
-            # Deep Infinite Scroll Loop
-            max_scroll_loops = 100 if is_unlimited else min(10, max(2, target_limit // 10))
+            # Optimized Fast Infinite Scroll Loop (Max 25 loops * 1s = 25s execution to stay well below Render's 100s HTTP timeout)
+            max_scroll_loops = 25 if is_unlimited else min(20, max(2, target_limit // 5))
             previous_count = 0
             no_new_posts_streak = 0
             
             for scroll_idx in range(max_scroll_loops):
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(1800)
+                page.wait_for_timeout(1000)
                 
                 current_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
                 if not is_unlimited and len(current_links) >= target_limit:
                     break
-                if scroll_idx > 6 and len(current_links) == previous_count:
+                if scroll_idx > 4 and len(current_links) == previous_count:
                     no_new_posts_streak += 1
-                    if no_new_posts_streak >= 4:
+                    if no_new_posts_streak >= 3:
                         print(f"[PLAYWRIGHT] Reached end of Instagram feed at {len(current_links)} posts!", flush=True)
                         break
                 else:
