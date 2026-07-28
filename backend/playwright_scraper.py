@@ -208,7 +208,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                 url = f"https://www.instagram.com/{clean_target}/"
 
             print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})", flush=True)
-            page.goto(url, wait_until="domcontentloaded", timeout=25000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
             
             try:
                 page.keyboard.press("Escape")
@@ -216,26 +216,26 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                 pass
 
             try:
-                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=10000)
+                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=12000)
             except Exception as se:
                 print(f"[PLAYWRIGHT] Initial selector check note: {se}", flush=True)
 
-            # Exhaustive Deep Infinite Scroll Loop (Up to 300 scroll loops for 100% complete feed extraction!)
-            max_scroll_loops = 300 if is_unlimited else min(50, max(2, target_limit // 5))
+            # Massive Deep Infinite Scroll Loop (Up to 1,000 scroll loops for up to 10,000+ posts!)
+            max_scroll_loops = 1000 if is_unlimited else min(200, max(2, target_limit // 5))
             previous_api_count = 0
             no_new_posts_streak = 0
             
             for scroll_idx in range(max_scroll_loops):
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(1200)
+                page.wait_for_timeout(1000)
                 
                 current_api_count = len(api_posts)
                 if not is_unlimited and current_api_count >= target_limit:
                     break
-                if scroll_idx > 10 and current_api_count == previous_api_count:
+                if scroll_idx > 12 and current_api_count == previous_api_count:
                     no_new_posts_streak += 1
-                    if no_new_posts_streak >= 10:
-                        print(f"[PLAYWRIGHT] 100% Reached end of Instagram feed at {current_api_count} total API posts!", flush=True)
+                    if no_new_posts_streak >= 12:
+                        print(f"[PLAYWRIGHT] 10,000+ Capacity Reached end of Instagram feed at {current_api_count} total API posts!", flush=True)
                         break
                 else:
                     no_new_posts_streak = 0
@@ -250,7 +250,7 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                         seen_ids.add(p.id)
                         unique_api_posts.append(p)
                 if len(unique_api_posts) > 0:
-                    print(f"[PLAYWRIGHT] Exhaustive Intercept SUCCESS: Extracted ALL {len(unique_api_posts)} REAL posts!", flush=True)
+                    print(f"[PLAYWRIGHT] Massive Intercept SUCCESS: Extracted ALL {len(unique_api_posts)} REAL posts!", flush=True)
                     browser.close()
                     return unique_api_posts[:target_limit]
 
