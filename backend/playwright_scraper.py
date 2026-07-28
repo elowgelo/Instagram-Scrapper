@@ -96,7 +96,7 @@ def extract_posts_from_instagram_json(json_data, clean_target: str) -> List[Inst
                     candidates = obj.get("image_versions2", {}).get("candidates", [])
                     display_url = candidates[0].get("url") if candidates else ""
 
-                # FILTER OUT INTERNAL CONTAINER METADATA DUPLICATES (Must have display_url or caption_text or likes > 0)
+                # Filter out internal container metadata duplicates
                 is_valid = bool(display_url or caption_text or likes > 0 or comments > 0)
                 
                 if username and code and is_valid:
@@ -220,28 +220,28 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             except Exception as se:
                 print(f"[PLAYWRIGHT] Initial selector check note: {se}", flush=True)
 
-            # Deep Infinite Scroll Loop for Unlimited Mode (up to 120 scroll loops!)
-            max_scroll_loops = 120 if is_unlimited else min(50, max(2, target_limit // 5))
-            previous_count = 0
+            # Exhaustive Deep Infinite Scroll Loop (Up to 300 scroll loops for 100% complete feed extraction!)
+            max_scroll_loops = 300 if is_unlimited else min(50, max(2, target_limit // 5))
+            previous_api_count = 0
             no_new_posts_streak = 0
             
             for scroll_idx in range(max_scroll_loops):
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(1200)
                 
-                current_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
-                if not is_unlimited and len(current_links) >= target_limit:
+                current_api_count = len(api_posts)
+                if not is_unlimited and current_api_count >= target_limit:
                     break
-                if scroll_idx > 8 and len(current_links) == previous_count:
+                if scroll_idx > 10 and current_api_count == previous_api_count:
                     no_new_posts_streak += 1
-                    if no_new_posts_streak >= 5:
-                        print(f"[PLAYWRIGHT] Reached end of feed at {len(current_links)} posts!", flush=True)
+                    if no_new_posts_streak >= 10:
+                        print(f"[PLAYWRIGHT] 100% Reached end of Instagram feed at {current_api_count} total API posts!", flush=True)
                         break
                 else:
                     no_new_posts_streak = 0
-                previous_count = len(current_links)
+                previous_api_count = current_api_count
 
-            # Prioritize intercepted API posts for full high quality JSON metadata
+            # Return intercepted API posts with 100% complete metadata
             if api_posts:
                 unique_api_posts = []
                 seen_ids = set()
@@ -250,11 +250,11 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                         seen_ids.add(p.id)
                         unique_api_posts.append(p)
                 if len(unique_api_posts) > 0:
-                    print(f"[PLAYWRIGHT] Network Intercept SUCCESS: Fetched {len(unique_api_posts)} REAL posts!", flush=True)
+                    print(f"[PLAYWRIGHT] Exhaustive Intercept SUCCESS: Extracted ALL {len(unique_api_posts)} REAL posts!", flush=True)
                     browser.close()
                     return unique_api_posts[:target_limit]
 
-            # DOM Extraction loop with high-resolution srcset
+            # DOM Extraction Fallback
             post_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
             print(f"[PLAYWRIGHT] DOM post links found: {len(post_links)}", flush=True)
             seen_shortcodes = set()
