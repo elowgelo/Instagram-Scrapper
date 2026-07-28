@@ -44,7 +44,6 @@ def clean_caption_text(alt_text: str, username: str, clean_target: str, is_hasht
         return f"Postingan #{clean_target}" if is_hashtag else f"Postingan @{clean_target}"
         
     text = alt_text
-    # Strip Instagram boilerplate prefixes like "Photo by @username on July 28, 2026. May be an image of..."
     text = re.sub(r'^(?:Photo|Video|Reel)\s+by\s+@?[a-zA-Z0-9._]+\s+on\s+[^.]+\.\s*', '', text, flags=re.IGNORECASE)
     text = re.sub(r'^(?:Photo|Video|Reel)\s+by\s+@?[a-zA-Z0-9._]+\.\s*', '', text, flags=re.IGNORECASE)
     text = re.sub(r'^May be an image of\s*', '', text, flags=re.IGNORECASE)
@@ -74,7 +73,9 @@ def extract_posts_from_instagram_json(json_data, clean_target: str) -> List[Inst
                     edges = obj.get("edge_media_to_caption", {}).get("edges", [])
                     caption_text = edges[0]["node"]["text"] if edges else ""
 
-                code = obj.get("code") or obj.get("shortcode") or str(obj.get("pk", ""))
+                code = obj.get("code") or obj.get("shortcode")
+                if not code and "pk" in obj:
+                    code = str(obj.get("pk", ""))
                 
                 likes_raw = (
                     obj.get("like_count") or
@@ -95,7 +96,10 @@ def extract_posts_from_instagram_json(json_data, clean_target: str) -> List[Inst
                     candidates = obj.get("image_versions2", {}).get("candidates", [])
                     display_url = candidates[0].get("url") if candidates else ""
 
-                if username and code:
+                # FILTER OUT INTERNAL CONTAINER METADATA DUPLICATES (Must have display_url or caption_text or likes > 0)
+                is_valid = bool(display_url or caption_text or likes > 0 or comments > 0)
+                
+                if username and code and is_valid:
                     post = InstagramPost(
                         id=str(code),
                         username=username,
@@ -216,7 +220,6 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             except Exception as se:
                 print(f"[PLAYWRIGHT] Initial selector check note: {se}", flush=True)
 
-            # Fast Infinite Scroll Loop (Max 15 loops)
             max_scroll_loops = 15 if is_unlimited else min(10, max(2, target_limit // 5))
             previous_count = 0
             no_new_posts_streak = 0
@@ -236,7 +239,6 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     no_new_posts_streak = 0
                 previous_count = len(current_links)
 
-            # Check intercepted API posts first for highest data quality (full JSON caption + real likes)
             if api_posts:
                 unique_api_posts = []
                 seen_ids = set()
@@ -249,7 +251,6 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     browser.close()
                     return unique_api_posts[:target_limit]
 
-            # DOM Extraction loop with high-resolution srcset & clean caption parsing
             post_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
             print(f"[PLAYWRIGHT] DOM post links found: {len(post_links)}", flush=True)
             seen_shortcodes = set()
@@ -276,7 +277,6 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                             img_src = img_elem.get_attribute("src") or ""
                             srcset = img_elem.get_attribute("srcset") or ""
                             if srcset:
-                                # Pick highest resolution image from srcset
                                 candidate_urls = [s.strip().split(" ")[0] for s in srcset.split(",") if s.strip()]
                                 if candidate_urls:
                                     img_src = candidate_urls[-1]
