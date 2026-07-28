@@ -196,18 +196,10 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             except Exception:
                 pass
 
-            # Fast initial check (timeout 5s)
             try:
-                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=5000)
+                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", state="attached", timeout=6000)
             except Exception as se:
                 print(f"[PLAYWRIGHT] Initial selector check note: {se}", flush=True)
-
-            # Early Abort Protection: If 0 DOM links AND 0 API posts captured after load, exit early to avoid HTTP timeout!
-            initial_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
-            if len(initial_links) == 0 and len(api_posts) == 0:
-                print("[PLAYWRIGHT] 0 links found on initial load. Aborting Playwright early to prevent HTTP timeout.", flush=True)
-                browser.close()
-                return []
 
             # Fast Infinite Scroll Loop (Max 15 loops)
             max_scroll_loops = 15 if is_unlimited else min(10, max(2, target_limit // 5))
