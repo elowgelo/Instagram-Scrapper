@@ -13,4 +13,5 @@
 - [Professional Loading Bar UI](tracks/pro_loading_bar_ui/index.md) (Completed)
 - [App Finalization & Deploy](tracks/app_finalization_deploy/index.md) (Completed)
 - [Mobile & Smartphone Responsiveness](tracks/mobile_smartphone_resp/index.md) (Completed)
-- [Multi-User Session Isolation](tracks/multiuser_session_isolation/index.md) (In Progress)
+- [Multi-User Session Isolation](tracks/multiuser_session_isolation/index.md) (Completed)
+- [Standalone Windows EXE](tracks/standalone_windows_exe/index.md) (Completed)

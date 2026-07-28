@@ -9,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, HTTPException, Query, Response, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from models import InstagramPost, ScrapeRequest, ImportPostsRequest, FilterRequest, ExportRequest
 from scraper import scrape_instagram_posts
@@ -42,9 +44,9 @@ app.add_middleware(
 
 ensure_initial_data()
 
-@app.get("/")
-def read_root():
-    return {"status": "ok", "message": "Instagram Scraper & Keyword Filter API Running"}
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "message": "Instagram Scraper API Running"}
 
 @app.options("/{full_path:path}")
 def options_handler(full_path: str):
@@ -170,3 +172,8 @@ def export_posts(req: ExportRequest):
         response = Response(content=json_str, media_type="application/json")
         response.headers["Content-Disposition"] = "attachment; filename=instagram_filtered_posts.json"
         return response
+
+# Mount React frontend/dist for single-port Executable App execution
+frontend_dist_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(frontend_dist_dir):
+    app.mount("/", StaticFiles(directory=frontend_dist_dir, html=True), name="static")
