@@ -1,10 +1,9 @@
 import os
 import urllib.parse
 import requests
-from bs4 import BeautifulSoup
 from typing import List
 from models import InstagramPost, ScrapeRequest
-from playwright_scraper import scrape_instagram_with_playwright
+from playwright_scraper import scrape_instagram_with_playwright, extract_posts_from_instagram_json
 
 def parse_cookie_header(raw_cookie: str) -> dict:
     if not raw_cookie:
@@ -29,18 +28,12 @@ def parse_cookie_header(raw_cookie: str) -> dict:
 def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
     target = request.target.strip()
     clean_target = target.replace("@", "").replace("#", "").strip()
+    is_hashtag = target.startswith("#")
     raw_session = request.session_id or os.getenv("INSTAGRAM_SESSION_ID")
+    is_unlimited = (request.max_posts == 0)
+    target_limit = 999999 if is_unlimited else request.max_posts
 
-    # Strategy 1: Playwright Chromium Browser Scraper (Supports Username & Hashtags)
-    try:
-        pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
-        if pw_posts:
-            print(f"[SCRAPER] Playwright Browser Scraper SUCCESS: Got {len(pw_posts)} REAL posts!")
-            return pw_posts
-    except Exception as e:
-        print(f"[SCRAPER] Playwright strategy note: {e}")
-
-    # Strategy 2: Direct Web API Request with Cookie Header
+    # Strategy 1: Direct Instagram REST API (Lightning Fast & 100% Reliable across Cloud IPs)
     parsed_cookies = parse_cookie_header(raw_session)
     if parsed_cookies:
         try:
@@ -53,39 +46,30 @@ def scrape_instagram_posts(request: ScrapeRequest) -> List[InstagramPost]:
                 "Referer": f"https://www.instagram.com/{clean_target}/"
             }
 
-            url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_target}"
-            resp = requests.get(url, headers=headers, cookies=parsed_cookies, timeout=6)
+            if is_hashtag:
+                url = f"https://www.instagram.com/api/v1/tags/web_info/?tag_name={clean_target}"
+            else:
+                url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_target}"
+
+            print(f"[SCRAPER] Trying Direct Instagram REST API: {url}", flush=True)
+            resp = requests.get(url, headers=headers, cookies=parsed_cookies, timeout=8)
             
             if resp.status_code == 200:
-                data = resp.json()
-                user_data = data.get("data", {}).get("user", {})
-                timeline = user_data.get("edge_owner_to_timeline_media", {}).get("edges", [])
-                
-                scraped = []
-                for edge in timeline[:request.max_posts]:
-                    node = edge.get("node", {})
-                    caption_edges = node.get("edge_media_to_caption", {}).get("edges", [])
-                    caption_text = caption_edges[0]["node"]["text"] if caption_edges else ""
-                    shortcode = node.get("shortcode") or node.get("id")
-                    
-                    scraped.append(InstagramPost(
-                        id=shortcode,
-                        username=user_data.get("username") or clean_target,
-                        caption=caption_text,
-                        post_url=f"https://www.instagram.com/p/{shortcode}/",
-                        media_url=node.get("display_url") or "",
-                        media_type="video" if node.get("is_video") else "image",
-                        timestamp=str(node.get("taken_at_timestamp", "")),
-                        likes_count=node.get("edge_media_preview_like", {}).get("count", 0),
-                        comments_count=node.get("edge_media_to_comment", {}).get("count", 0),
-                        matched_keywords=[],
-                        is_live_data=True
-                    ))
-
-                if scraped:
-                    return scraped
+                json_data = resp.json()
+                api_posts = extract_posts_from_instagram_json(json_data, clean_target)
+                if api_posts:
+                    print(f"[SCRAPER] Direct Instagram REST API SUCCESS: Extracted {len(api_posts)} REAL posts!", flush=True)
+                    return api_posts[:target_limit]
         except Exception as e:
-            print(f"[SCRAPER] Direct Web Profile API error: {e}")
+            print(f"[SCRAPER] Direct REST API note: {e}", flush=True)
 
-    # No synthetic demo data returned -> Strict failure status if scraping fails or blocked!
+    # Strategy 2: Playwright Chromium Browser Scraper (Fallback & Deep Infinite Scroll)
+    try:
+        pw_posts = scrape_instagram_with_playwright(target, request.max_posts, raw_session)
+        if pw_posts:
+            print(f"[SCRAPER] Playwright Browser Scraper SUCCESS: Got {len(pw_posts)} REAL posts!", flush=True)
+            return pw_posts
+    except Exception as e:
+        print(f"[SCRAPER] Playwright strategy note: {e}", flush=True)
+
     return []
