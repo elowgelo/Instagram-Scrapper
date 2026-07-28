@@ -184,9 +184,9 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
 
             page.on("response", handle_response)
             
-            # Direct Hashtag Tag Page for #hashtag, or profile page for @username
+            # Use direct search keyword URL for #hashtags
             if is_hashtag:
-                url = f"https://www.instagram.com/explore/tags/{clean_target}/"
+                url = f"https://www.instagram.com/explore/search/keyword/?q=%23{clean_target}"
             elif target.startswith("http"):
                 url = target
             else:
@@ -195,8 +195,10 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             print(f"[PLAYWRIGHT] Navigating to {url} (Unlimited Mode: {is_unlimited}, Limit: {target_limit})", flush=True)
             page.goto(url, wait_until="domcontentloaded", timeout=25000)
             
+            # Explicit selector wait for post grid elements
             try:
-                page.wait_for_selector("a", timeout=10000)
+                page.wait_for_selector("a[href*='/p/'], a[href*='/reel/']", timeout=15000)
+                print("[PLAYWRIGHT] Post grid selector loaded successfully!", flush=True)
             except Exception as se:
                 print(f"[PLAYWRIGHT] Selector wait note: {se}", flush=True)
 
@@ -235,11 +237,11 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
                     return unique_api_posts[:target_limit]
 
             # DOM Extraction loop with exact real metrics parsing from alt / aria-label text
-            all_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/'], article a, main a")
-            print(f"[PLAYWRIGHT] DOM links found: {len(all_links)}", flush=True)
+            post_links = page.query_selector_all("a[href*='/p/'], a[href*='/reel/']")
+            print(f"[PLAYWRIGHT] DOM post links found: {len(post_links)}", flush=True)
             seen_shortcodes = set()
             
-            for elem in all_links:
+            for elem in post_links:
                 if len(scraped_posts) >= target_limit:
                     break
                 try:
@@ -283,9 +285,6 @@ def scrape_instagram_with_playwright(target: str, max_posts: int = 25, raw_cooki
             if scraped_posts:
                 print(f"[PLAYWRIGHT] DOM Extraction SUCCESS: Fetched {len(scraped_posts)} REAL posts!", flush=True)
                 return scraped_posts
-
-            # Fallback if both empty: try keyword search URL directly
-            print(f"[PLAYWRIGHT] Direct tag page yielded 0, trying search URL fallback...", flush=True)
 
     except Exception as e:
         print(f"[PLAYWRIGHT] Error during live scraping: {e}", flush=True)
